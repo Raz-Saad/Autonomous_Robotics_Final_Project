@@ -1,7 +1,9 @@
 # Tiny Drone Simulation Enhancement - Autonomous Robotics Final Project
 ## Submited by </br>
 * Maor Or
-* Raz Saad 
+* Raz Saad
+* Shlomit Ashkenazi
+  
 ## Overview
 This project aims to expand the capabilities of the "tiny drone" simulation (Assignment 1). Our goal is to create a high-quality, open-source platform that supports the simulation of a control algorithm of a drone.</br>
 Additionally, the drone will be capable of scanning an entire map efficiently, similar to a robotic mop cleaner.
