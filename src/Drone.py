@@ -18,8 +18,9 @@ class Drone:
         self.pid_controller = PIDController(0.07, 0, 0.05, 5)  
         self.forward_pid_controller = PIDController(1.6,0, 0.03, 5)
         self.narrow_pid_controller = PIDController(0.03,0, 0.03, 5)
-        self.desired_wall_distance = 25 # Desired distance from the wall in cm
-        self.desired_distance_switching_wall_delta = 3 # an eplsion to diff bettween turnning on the PID to finding a wall in wall switching mode 
+        self.initial_desired_wall_distance = 25 # Desired distance from the wall in cm
+        self.desired_wall_distance = self.initial_desired_wall_distance # Desired distance from the wall in cm
+        self.desired_distance_switching_wall_delta = 3 # an eplsion to diff bettween turnning on the PID to finding a wall in wall switching mode
         # Variables for wall following
         self.is_hugging_right = True  # Start by hugging the right wall
         self.starting_position = None # starting postion of the drone
@@ -30,13 +31,28 @@ class Drone:
         self.cooldown_start_time_wall_switching = 0 
         self.drone_idle = False # flag to check if the drone stop because it was about to it a wall
 
+        # 3d expantion:
+        self.z_level = 50 # the actual height of the drone in the map
+
     def update_sensors(self, map_matrix, position, drone_radius, orientation):
         self.forward_distance_sensor.update_values(map_matrix, position, drone_radius, orientation)
         self.backward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.leftward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.rightward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.battery_sensor.update_battrey_precentage()
-        
+
+
+    #3d expantion:
+    def change_z_level(self, z_direction):
+        self.z_level += z_direction * self.optical_flow_sensor.current_speed
+
+    # the wall distance should be adjusted relative to the drone's height:
+    def update_desired_wall_distance(self,deviation):
+        desired_wall_distance = int(initial_desired_wall_distance +
+                                               deviation * initial_desired_wall_distance
+                                               )
+
+
     def move_drone(self,drone_pos , direction):
         directions = {
             "forward": 0,

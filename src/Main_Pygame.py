@@ -10,14 +10,20 @@ import time
 class DroneSimulation:
     def __init__(self):
         pygame.init()
-        self.map_width = 1366
-        self.map_height = 768
+        self.map_width = 1000#1366
+        self.map_height = 600#768
         self.screen_width = self.map_width + 100  # Increase width by some pixels
         self.screen_height = self.map_height + 32  # Increase height by some pixels
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         self.last_key_state = pygame.key.get_pressed() #for button pressing
         pygame.display.set_caption("Drone Simulation")
         self.show_legend = True  # Flag to control legend visibility
+
+        # 3d expantion:
+        self.ceiling_level = 500
+        self.floor_level = 0
+
+
 
         # Load map
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +33,7 @@ class DroneSimulation:
         self.load_map(self.map_paths[self.current_map_index])
 
         self.sensor_texts = {
+            "Height": "height: 0 cm",
             "Autonomous_Mode": "Autonomous Mode: True",
             "forward": "Forward: 0 cm",
             "backward": "Backward: 0 cm",
@@ -41,6 +48,7 @@ class DroneSimulation:
 
         # Initialize drone
         self.drone_radius = int(10 / 2.5)  # Convert cm to pixels
+        self.initial_drone_radius = self.drone_radius  # for saving the initial radius
         self.drone = Drone()
         self.drone_pos = None
         self.respawn_drone()
@@ -91,11 +99,39 @@ class DroneSimulation:
         while True:
             x = random.randint(self.drone_radius, self.map_width - self.drone_radius - 1)
             y = random.randint(self.drone_radius, self.map_height - self.drone_radius - 1)
-            if not self.check_collision(x, y):
+            drone_z_level = random.randint(self.floor_level+1, self.ceiling_level-1) # for changing drone's height
+            self.drone.z_level = drone_z_level
+            if not self.check_collision(x, y): # TODO: implement checking object collision
                 self.drone_pos = [x, y]
+                self.adjust_drone_radius()
                 break
 
+
+    def update_drone_desired_wall_distance(self):
+        deviation = calculate_drone_z_axis_deviation()
+        self.drone.update_desired_wall_distance(deviation)
+
+    def calculate_drone_z_axis_deviation(self):
+        z_middle_value = (self.ceiling_level + self.floor_level) / 2
+        return (self.drone.z_level - z_middle_value) / z_middle_value #(self.ceiling_level / 2)
+
+    # adjust the drone's radius by it's z axis, for visualization:
+    def adjust_drone_radius(self):
+        # the drone's radius will be it's initial value + the deviation of its actual height from the middle height value:
+        self.drone_radius = int(self.initial_drone_radius + # initial value
+                             self.calculate_drone_z_axis_deviation() * self.initial_drone_radius # deviation precentage
+                             + 1) # avoiding radius = 0
+
+
+    def check_map_z_collision(self):
+        if self.drone.z_level <= self.floor_level or self.drone.z_level >= self.ceiling_level: # out of height bound
+            return True
+        return False
+
     def check_collision(self, x, y):
+        if self.check_map_z_collision():
+            return True
+
         for i in range(int(x - self.drone_radius), int(x + self.drone_radius)):
             for j in range(int(y - self.drone_radius), int(y + self.drone_radius)):
                 if 0 <= i < self.map_width and 0 <= j < self.map_height:
@@ -116,10 +152,17 @@ class DroneSimulation:
         else:
             self.reset_simulation()
 
+
+    def move_drone_z_axis(self,z_direction):
+        self.drone.change_z_level(z_direction)
+        self.check_move_legality(self.drone_pos)
+
+
     # move with user input keys
     def move_drone_by_direction(self, direction = "forward"):  
         new_pos = self.drone.move_drone(self.drone_pos , direction)
         self.check_move_legality(new_pos)
+
     # for controling the drone manul
     def update_drone_angle(self, angle_delta):
         self.drone.update_drone_angle(angle_delta)
@@ -264,6 +307,14 @@ class DroneSimulation:
                     self.game_over = True
 
             keys = pygame.key.get_pressed()
+
+            # 3d expantion:
+            if keys[pygame.K_1]:
+                self.move_drone_z_axis(1)
+
+            if keys[pygame.K_2]:
+                self.move_drone_z_axis(-1)
+
             if keys[pygame.K_LEFT]:
                 self.move_drone_by_direction("backward")
             if keys[pygame.K_RIGHT]:
@@ -318,7 +369,10 @@ class DroneSimulation:
                 # Update sensors
                 self.update_sensors()
                 sensors_update_timer = current_time  # Reset the timer
-            
+
+            #adjust the drone's radius by it's current height:
+            self.adjust_drone_radius()
+
             if is_autonomous:
                 # Update drone position by algorithm
                 self.drone_pos = self.drone.update_position_by_algorithm(self.drone_pos, dt)
@@ -358,6 +412,7 @@ class DroneSimulation:
             self.sensor_texts["Drone's speed"] = f"Drone's speed: {self.drone.optical_flow_sensor.get_current_speed():.1f}"
             self.sensor_texts["Yellow_Percentage"] = f"Yellow_Percentage: {yellow_percentage:.2f} %"
             self.sensor_texts["Autonomous_Mode"] = f"Autonomous_Mode: {is_autonomous}"
+            self.sensor_texts["Height"] = f"height: {self.drone.z_level}"
 
 
             # Display sensor texts
