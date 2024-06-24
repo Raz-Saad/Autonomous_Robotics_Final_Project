@@ -1,6 +1,7 @@
 from IMU import IMU
 from BatterySensor import BatterySensor
 from DistanceSensor import DistanceSensor
+from DistanceSensorHight import DistanceSensorHight
 import math
 from OpticalFlow import OpticalFlow
 from PIDController import PIDController
@@ -14,10 +15,19 @@ class Drone:
         self.backward_distance_sensor = DistanceSensor("backward")
         self.leftward_distance_sensor = DistanceSensor("leftward")
         self.rightward_distance_sensor = DistanceSensor("rightward")
+
+        # because our map is 2d, we need a different kind of calculation of the up/down sensors: #TODO: show raz
+        self.up_distance_sensor = DistanceSensorHight("up")
+        self.down_distance_sensor = DistanceSensorHight("down")
+#        self.height_pid_controller = PIDController(0.1, 0.01, 0.05)  # PID controller for height - we wish to be (for example) 2.5 meters above the floor
+
         self.orientation_sensor = IMU() #the drone's angle, the drone is looking rightward, beginning at 0
-        self.pid_controller = PIDController(0.07, 0, 0.05, 5)  
+        self.pid_controller = PIDController(0.07, 0, 0.05, 5)
         self.forward_pid_controller = PIDController(1.6,0, 0.03, 5)
         self.narrow_pid_controller = PIDController(0.03,0, 0.03, 5)
+
+
+
         self.initial_desired_wall_distance = 25 # Desired distance from the wall in cm
         self.desired_wall_distance = self.initial_desired_wall_distance # Desired distance from the wall in cm
         self.desired_distance_switching_wall_delta = 3 # an eplsion to diff bettween turnning on the PID to finding a wall in wall switching mode
@@ -34,11 +44,17 @@ class Drone:
         # 3d expantion:
         self.z_level = 50 # the actual height of the drone in the map
 
-    def update_sensors(self, map_matrix, position, drone_radius, orientation):
+
+
+    def update_sensors(self, map_matrix, position, drone_radius, orientation,floor_level, ceiling_level,obstacles): # added some parameters for hight sensors
         self.forward_distance_sensor.update_values(map_matrix, position, drone_radius, orientation)
         self.backward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.leftward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.rightward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
+
+        self.up_distance_sensor.update_values(self.z_level, drone_radius,floor_level,ceiling_level, obstacles)     # different calculation, requires different inputs
+        self.down_distance_sensor.update_values(self.z_level, drone_radius, floor_level,ceiling_level, obstacles)   # different calculation, requires different inputs
+
         self.battery_sensor.update_battrey_precentage()
 
 

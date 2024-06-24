@@ -23,8 +23,6 @@ class DroneSimulation:
         self.ceiling_level = 500
         self.floor_level = 0
 
-
-
         # Load map
         script_dir = os.path.dirname(os.path.abspath(__file__))
         parent_directory = os.path.dirname(script_dir)
@@ -35,6 +33,8 @@ class DroneSimulation:
         self.sensor_texts = {
             "Height": "height: 0 cm",
             "Autonomous_Mode": "Autonomous Mode: True",
+            "upward": "Upward: 0 cm",
+            "downward": "Downward: 0 cm",
             "forward": "Forward: 0 cm",
             "backward": "Backward: 0 cm",
             "leftward": "Left: 0 cm",
@@ -51,7 +51,12 @@ class DroneSimulation:
         self.initial_drone_radius = self.drone_radius  # for saving the initial radius
         self.drone = Drone()
         self.drone_pos = None
+
+        self.obstacles = [] # Initialize obstacles for the drone to fly above
+
         self.respawn_drone()
+
+        self.spawn_obstacles(1)  # Spawn 10 obstacles
 
         self.clock = pygame.time.Clock()
         self.game_over = False
@@ -67,6 +72,8 @@ class DroneSimulation:
         self.total_white_pixels = self.count_white_pixels()
 
         self.drone.set_starting_position(self.drone_pos)
+
+
 
     def load_map(self, filename):
         map_img = Image.open(filename)
@@ -128,15 +135,24 @@ class DroneSimulation:
             return True
         return False
 
-    def check_collision(self, x, y):
+    def check_collision(self, x, y, radius=None):
         if self.check_map_z_collision():
             return True
 
-        for i in range(int(x - self.drone_radius), int(x + self.drone_radius)):
-            for j in range(int(y - self.drone_radius), int(y + self.drone_radius)):
+        if radius is None:
+            radius = self.drone_radius
+
+        for i in range(int(x - radius), int(x + radius)):
+            for j in range(int(y - radius), int(y + radius)):
                 if 0 <= i < self.map_width and 0 <= j < self.map_height:
                     if self.map_matrix[j][i] == 1:
                         return True
+                    for obstacle in self.obstacles:
+                        ox, oy, oradius, _, oheight = obstacle
+                        if math.sqrt((i - ox)**2 + (j - oy)**2) < oradius:
+                            # Check z-level for collision
+                            if self.drone.z_level <= oheight:
+                                return True
         return False
 
     # checks if the drone is inside the map and also is not collided, if it did reset the game
@@ -167,8 +183,33 @@ class DroneSimulation:
     def update_drone_angle(self, angle_delta):
         self.drone.update_drone_angle(angle_delta)
 
+
+    def is_obstacle_colliding_with_drone_xy(self,obstacle):
+        ox,oy,obstacle_radius,o_color,o_height = obstacle
+
+        d_x , d_y = self.drone_pos
+
+        # Calculate distance between drone center (self.x, self.y) and obstacle center (ox, oy)
+        distance = math.sqrt((d_x - ox) ** 2 + (d_y - oy) ** 2)
+
+        # Check collision: if distance <= sum of radii (self.drone_radius + obstacle_radius)
+        if distance <= (self.drone_radius + obstacle_radius):
+            return True
+        else:
+            return False
+
+
+
     def update_sensors(self):
-        self.drone.update_sensors(self.map_matrix, self.drone_pos, self.drone_radius, self.drone.orientation_sensor.drone_orientation)
+        # gathering x,y colliding obstacles, for the distance-hight sensors:
+        colliding_obstacles = []
+        for obstacle in self.obstacles:
+            if self.is_obstacle_colliding_with_drone_xy(obstacle):
+                colliding_obstacles.append(obstacle)
+
+
+        self.drone.update_sensors(self.map_matrix, self.drone_pos, self.drone_radius, self.drone.orientation_sensor.drone_orientation,
+                                  self.floor_level,self.ceiling_level,colliding_obstacles) # for updating up/down distance sensors TODO: show raz
        
     def paint_detected_points(self):
         def get_detected_points(sensor_distance, angle_offset):
@@ -240,6 +281,9 @@ class DroneSimulation:
         self.drone.optical_flow_sensor.update_speed_acceleration()
         #clearing the drone trail array for wall switching
         self.drone.trail.clear()
+
+        self.obstacles.clear()  # Clear obstacles
+        self.spawn_obstacles(10)  # Respawn obstacles
         
     def calculate_yellow_percentage(self):
         yellow_pixels_count = len(self.detected_yellow_pixels)
@@ -284,6 +328,25 @@ class DroneSimulation:
         self.load_map(self.map_paths[self.current_map_index])
         self.reset_simulation()
 
+    def spawn_obstacles(self, num_obstacles):
+        for _ in range(num_obstacles):
+            while True:
+                obstacle_radius = random.randint(10, 20)
+                x = random.randint(obstacle_radius, self.map_width - obstacle_radius)
+                y = random.randint(obstacle_radius, self.map_height - obstacle_radius)
+                if not self.check_collision(x, y, obstacle_radius):
+                    grey_shade = random.randint(50, 200)
+                    color = (grey_shade, grey_shade, grey_shade)
+                    # Calculate obstacle height based on grey shade
+                    height = self.floor_level + (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)
+                    print("height: ",height)
+                    self.obstacles.append((x, y, obstacle_radius, color, height))
+                    break
+
+    def draw_obstacles(self):
+        for obstacle in self.obstacles:
+            x, y, radius, color, _ = obstacle
+            pygame.draw.circle(self.screen, color, (x, y), radius)
 
     def run_simulation(self):
         
@@ -380,7 +443,7 @@ class DroneSimulation:
                 self.move_drone_by_direction()
             #checking if the drone crashing into the wall or not  
             self.check_move_legality(self.drone_pos)
-                
+
             # Blit the map image onto the screen
             self.screen.blit(self.map_img, (0, 0))
 
@@ -389,9 +452,16 @@ class DroneSimulation:
 
             yellow_percentage=self.calculate_yellow_percentage()
 
+            # Draw obstacles
+            self.draw_obstacles()
+
             # Blit the drone trail onto the screen
             for pos in self.drone_positions:
                 pygame.draw.circle(self.screen, (0, 0, 255), pos, 2)
+
+
+
+
 
             # Draw arrow on the drone indicating its direction
             angle_rad = math.radians(self.drone.orientation_sensor.drone_orientation)
@@ -402,7 +472,10 @@ class DroneSimulation:
             # Blit the drone onto the screen
             pygame.draw.circle(self.screen, (255, 0, 0), self.drone_pos, self.drone_radius)
 
+
             # Update sensor texts
+            self.sensor_texts["upward"] = f"Upward: {self.drone.up_distance_sensor.distance:.1f} cm"
+            self.sensor_texts["downward"] = f"Downward: {self.drone.down_distance_sensor.distance:.1f} cm"
             self.sensor_texts["forward"] = f"Forward: {self.drone.forward_distance_sensor.distance:.1f} cm"
             self.sensor_texts["backward"] = f"Backward: {self.drone.backward_distance_sensor.distance:.1f} cm"
             self.sensor_texts["leftward"] = f"Left: {self.drone.leftward_distance_sensor.distance:.1f} cm"
