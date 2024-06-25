@@ -1,6 +1,6 @@
 import math
 
-class DistanceSensorHight:
+class DistanceSensorheight:
     def __init__(self, sensor_direction, distance=0):
         self.distance = distance  # the distance from an obstacle
         self.direction = sensor_direction  # up, down
@@ -13,7 +13,7 @@ class DistanceSensorHight:
         if self.direction == "up":
             # Check distance to ceiling
             distance_to_ceiling = ceiling_level - drone_z_level
-            self.distance = min(distance_to_ceiling, max_range)
+            self.distance = min(distance_to_ceiling, max_range) # * 2.5 # 1 pixel = 2.5 cm
             # Check for obstacles in the upward direction
             # for obstacle in obstacles:
             #     _, _, _, _, height = obstacle
@@ -31,4 +31,4 @@ class DistanceSensorHight:
                 _, _, _, _, height = obstacle
                 if height < drone_z_level:  # Obstacle is below the drone
                     distance_to_obstacle = drone_z_level - height
-                    self.distance = min(distance_to_obstacle, self.distance)
+                    self.distance = min(distance_to_obstacle, self.distance) # * 2.5 # 1 pixel = 2.5 cm

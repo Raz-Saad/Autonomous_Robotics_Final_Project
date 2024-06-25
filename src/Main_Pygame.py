@@ -20,7 +20,7 @@ class DroneSimulation:
         self.show_legend = True  # Flag to control legend visibility
 
         # 3d expantion:
-        self.ceiling_level = 500
+        self.ceiling_level = int(500 / 2.5) # 500 in cm, so dividing bt 2.5 for pixels
         self.floor_level = 0
 
         # Load map
@@ -56,7 +56,7 @@ class DroneSimulation:
 
         self.respawn_drone()
 
-        self.spawn_obstacles(1)  # Spawn 10 obstacles
+        self.spawn_obstacles(10)  # Spawn 10 obstacles
 
         self.clock = pygame.time.Clock()
         self.game_over = False
@@ -106,7 +106,7 @@ class DroneSimulation:
         while True:
             x = random.randint(self.drone_radius, self.map_width - self.drone_radius - 1)
             y = random.randint(self.drone_radius, self.map_height - self.drone_radius - 1)
-            drone_z_level = random.randint(self.floor_level+1, self.ceiling_level-1) # for changing drone's height
+            drone_z_level = (self.ceiling_level + self.floor_level) / 2 # = random.randint(self.floor_level+1, self.ceiling_level-1) # for changing drone's height
             self.drone.z_level = drone_z_level
             if not self.check_collision(x, y): # TODO: implement checking object collision
                 self.drone_pos = [x, y]
@@ -335,11 +335,14 @@ class DroneSimulation:
                 x = random.randint(obstacle_radius, self.map_width - obstacle_radius)
                 y = random.randint(obstacle_radius, self.map_height - obstacle_radius)
                 if not self.check_collision(x, y, obstacle_radius):
-                    grey_shade = random.randint(50, 200)
+                    grey_shade = 200#= random.randint(50, 200) # 0 = black max height, 255 - white min height
                     color = (grey_shade, grey_shade, grey_shade)
                     # Calculate obstacle height based on grey shade
-                    height = self.floor_level + (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)
+                    height = int(self.floor_level + # base height
+                              (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)) # adding a value that wont go more than the ceiling
+                              #/ 2.5) # the height is in pixels, this changes it to cm
                     print("height: ",height)
+                    print("height * 2.5: ",int(height*2.5))
                     self.obstacles.append((x, y, obstacle_radius, color, height))
                     break
 
@@ -455,6 +458,9 @@ class DroneSimulation:
             # Draw obstacles
             self.draw_obstacles()
 
+            # this calculation get the factor of change the circle itself had, and we will use it to change the drone's arrow as well:
+            precentage_of_drone_height_deviation = (self.drone_radius / self.initial_drone_radius)
+
             # Blit the drone trail onto the screen
             for pos in self.drone_positions:
                 pygame.draw.circle(self.screen, (0, 0, 255), pos, 2)
@@ -465,17 +471,17 @@ class DroneSimulation:
 
             # Draw arrow on the drone indicating its direction
             angle_rad = math.radians(self.drone.orientation_sensor.drone_orientation)
-            end_x = self.drone_pos[0] + 15 * math.cos(angle_rad)
-            end_y = self.drone_pos[1] + 15 * math.sin(angle_rad)
-            pygame.draw.line(self.screen, (0, 0, 0), self.drone_pos, (end_x, end_y), 2)
+            end_x = self.drone_pos[0] + 15 * precentage_of_drone_height_deviation * math.cos(angle_rad)
+            end_y = self.drone_pos[1] + 15 * precentage_of_drone_height_deviation * math.sin(angle_rad)
+            pygame.draw.line(self.screen, (0, 0, 0), self.drone_pos, (end_x, end_y), int(2* precentage_of_drone_height_deviation) )
 
             # Blit the drone onto the screen
             pygame.draw.circle(self.screen, (255, 0, 0), self.drone_pos, self.drone_radius)
 
 
             # Update sensor texts
-            self.sensor_texts["upward"] = f"Upward: {self.drone.up_distance_sensor.distance:.1f} cm"
-            self.sensor_texts["downward"] = f"Downward: {self.drone.down_distance_sensor.distance:.1f} cm"
+            self.sensor_texts["upward"] = f"Upward: {self.drone.up_distance_sensor.distance *2.5:.1f} cm"
+            self.sensor_texts["downward"] = f"Downward: {self.drone.down_distance_sensor.distance*2.5:.1f} cm"
             self.sensor_texts["forward"] = f"Forward: {self.drone.forward_distance_sensor.distance:.1f} cm"
             self.sensor_texts["backward"] = f"Backward: {self.drone.backward_distance_sensor.distance:.1f} cm"
             self.sensor_texts["leftward"] = f"Left: {self.drone.leftward_distance_sensor.distance:.1f} cm"
@@ -485,7 +491,7 @@ class DroneSimulation:
             self.sensor_texts["Drone's speed"] = f"Drone's speed: {self.drone.optical_flow_sensor.get_current_speed():.1f}"
             self.sensor_texts["Yellow_Percentage"] = f"Yellow_Percentage: {yellow_percentage:.2f} %"
             self.sensor_texts["Autonomous_Mode"] = f"Autonomous_Mode: {is_autonomous}"
-            self.sensor_texts["Height"] = f"height: {self.drone.z_level}"
+            self.sensor_texts["Height"] = f"height: {self.drone.z_level *2.5:.1f} cm"
 
 
             # Display sensor texts
