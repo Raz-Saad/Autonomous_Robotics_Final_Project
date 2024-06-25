@@ -12,10 +12,13 @@ class Drone:
         self.battery_sensor = BatterySensor() #battery is initialing with 100%
         self.optical_flow_sensor = OpticalFlow()
         self.forward_distance_sensor = DistanceSensor("forward")
+        self.forward_right_diagonal_distance_sensor = DistanceSensor("forward_right_diagonal")
+        self.forward_left_diagonal_distance_sensor = DistanceSensor("forward_left_diagonal")
         self.backward_distance_sensor = DistanceSensor("backward")
         self.leftward_distance_sensor = DistanceSensor("leftward")
         self.rightward_distance_sensor = DistanceSensor("rightward")
 
+        #TODO: RAZ'S IDEA - BLIT NON-VISABLE FLOOR AND CEILING ONTO THE MAP SO WE CAN KNOW THE HIGHT 
         # because our map is 2d, we need a different kind of calculation of the up/down sensors: #TODO: show raz
         self.up_distance_sensor = DistanceSensorheight("up")
         self.down_distance_sensor = DistanceSensorheight("down")
@@ -43,6 +46,7 @@ class Drone:
         self.drone_idle = False # flag to check if the drone stop because it was about to it a wall
 
         # 3d expantion:
+        #TODO: WHY 50?
         self.z_level = 50 # the actual height of the drone in the map
 
 
@@ -52,6 +56,9 @@ class Drone:
         self.backward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.leftward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
         self.rightward_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
+        self.forward_right_diagonal_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
+        self.forward_left_diagonal_distance_sensor.update_values(map_matrix, position, drone_radius,orientation)
+
 
         self.up_distance_sensor.update_values(self.z_level, drone_radius,floor_level,ceiling_level, obstacles)     # different calculation, requires different inputs
         self.down_distance_sensor.update_values(self.z_level, drone_radius, floor_level,ceiling_level, obstacles)   # different calculation, requires different inputs
@@ -65,8 +72,8 @@ class Drone:
 
     # the wall distance should be adjusted relative to the drone's height:
     def update_desired_wall_distance(self,deviation):
-        desired_wall_distance = int(initial_desired_wall_distance +
-                                    deviation * initial_desired_wall_distance
+        self.desired_wall_distance = int(self.initial_desired_wall_distance +
+                                    deviation * self.initial_desired_wall_distance
                                     )
 
 
@@ -102,31 +109,39 @@ class Drone:
         if not self.use_pid:
             if self.is_hugging_right: # drone is hugging the right side and is looking for the left wall
                 #checking if the drone should move without the PID
-                if  self.forward_distance_sensor.distance > delta and self.leftward_distance_sensor.distance > delta and self.rightward_distance_sensor.distance > delta:
+                if  self.forward_distance_sensor.distance > delta and \
+                    self.leftward_distance_sensor.distance > delta and \
+                    self.rightward_distance_sensor.distance > delta and \
+                    self.forward_left_diagonal_distance_sensor.distance > delta and \
+                    self.forward_right_diagonal_distance_sensor.distance > delta:
                     # Move forward without PID control
                     new_pos = self.move_drone(drone_pos, "forward")
                     return new_pos
 
                 #if found the left wall , hug it
-                elif self.forward_distance_sensor.distance <= delta or self.leftward_distance_sensor.distance <= delta:
+                elif self.forward_distance_sensor.distance <= delta or self.leftward_distance_sensor.distance <= delta or self.forward_left_diagonal_distance_sensor.distance <= delta:
                     self.is_hugging_right = not self.is_hugging_right
 
                 # Re-enable PID because we are close to a wall
                 self.use_pid = True
             else: # drone is hugging the left side and is looking for the right wall
-                if  self.forward_distance_sensor.distance > delta and self.leftward_distance_sensor.distance > delta and self.rightward_distance_sensor.distance > delta:
+                if  self.forward_distance_sensor.distance > delta and \
+                    self.leftward_distance_sensor.distance > delta and \
+                    self.rightward_distance_sensor.distance > delta and \
+                    self.forward_left_diagonal_distance_sensor.distance > delta and \
+                    self.forward_right_diagonal_distance_sensor.distance > delta:
                     # Move forward without PID control
                     new_pos = self.move_drone(drone_pos, "forward")
                     return new_pos
                 #if found the right wall , hug it
-                elif self.forward_distance_sensor.distance <= delta or self.rightward_distance_sensor.distance <= delta:
+                elif self.forward_distance_sensor.distance <= delta or self.rightward_distance_sensor.distance <= delta or self.forward_right_diagonal_distance_sensor.distance <= delta:
                     self.is_hugging_right = not self.is_hugging_right
 
                 # Re-enable PID because we are close to a wall
                 self.use_pid = True
 
-
-                # Calculate the error from the desired wall distance
+        #TODO: DOES WE NEED TO ADD THE diagonal SENSORS HERE TOO???
+        # Calculate the error from the desired wall distance
         if not self.is_hugging_right: #self.leftward_distance_sensor.distance < 35:  # Detect the wall on the left side
             error = -1 *(self.leftward_distance_sensor.distance - self.desired_wall_distance)
         else:
@@ -137,6 +152,7 @@ class Drone:
         overall_correction = self.pid_controller.update(error, dt)
 
         # Calculate the correction for case the drone's front is getting too close to a wall
+        #TODO: CHECK WHAT IS THE OPTIMAL DANGER DISTANCE
         front_danger_distance = 40
         if(self.forward_distance_sensor.distance >= front_danger_distance):
             forward_distance_error = 0
@@ -147,8 +163,15 @@ class Drone:
 
 
         narrow_path_error = 0
-        if self.is_hugging_right and self.leftward_distance_sensor.distance < self.rightward_distance_sensor.distance :
+        if self.is_hugging_right and self.forward_left_diagonal_distance_sensor.distance < self.rightward_distance_sensor.distance :
+            narrow_path_error = self.rightward_distance_sensor.distance - self.forward_left_diagonal_distance_sensor.distance
+
+        elif self.is_hugging_right and self.leftward_distance_sensor.distance < self.rightward_distance_sensor.distance :
             narrow_path_error = self.rightward_distance_sensor.distance - self.leftward_distance_sensor.distance
+        
+        elif not self.is_hugging_right and self.leftward_distance_sensor.distance > self.forward_right_diagonal_distance_sensor.distance :
+            narrow_path_error = self.forward_right_diagonal_distance_sensor.distance - self.leftward_distance_sensor.distance
+
         elif not self.is_hugging_right and self.leftward_distance_sensor.distance > self.rightward_distance_sensor.distance :
             narrow_path_error = self.rightward_distance_sensor.distance - self.leftward_distance_sensor.distance
 
@@ -235,9 +258,11 @@ class Drone:
                     self.optical_flow_sensor.update_speed_deceleration()
 
         return new_pos
-
+    
+    #TODO: I THINK THOSE VALUES NEED TO BE REALATED TO THE DRONES RADIUS, IT CANT BE STATIC
     def drone_about_to_touch_wall(self):
-        return (self.forward_distance_sensor.distance < 20) or (self.rightward_distance_sensor.distance < 6) or (self.leftward_distance_sensor.distance < 6)
+        return (self.forward_distance_sensor.distance < 22.5) or (self.rightward_distance_sensor.distance < 10) or (self.leftward_distance_sensor.distance < 10) \
+                or (self.forward_right_diagonal_distance_sensor.distance < 10) or (self.forward_left_diagonal_distance_sensor.distance < 10)
 
     def set_starting_position(self, position):
         self.starting_position = position
@@ -274,12 +299,17 @@ class Drone:
                 return True
         return False
 
+    #TODO: WE ARE NOT USING THIS FUNCTION , IF NOT NEEDED , DELETE
     def correct_angle_to_avoid_wall(self):
         # Determine the direction of the wall
         # Assuming the drone is facing right
         if self.rightward_distance_sensor.distance < 10:
             # Correct angle to avoid the wall on the right
             self.update_drone_angle(-20)
+        elif self.forward_right_diagonal_distance_sensor.distance < 10: # TODO: NEED TO CHECK IF -20 IS THE RIGHT FOR right_diagonal
+            self.update_drone_angle(-20)
+        elif self.forward_left_diagonal_distance_sensor.distance < 10:  # TODO:NEED TO CHECK IF 20 IS THE RIGHT FOR left_diagonal
+            self.update_drone_angle(20)
         elif self.leftward_distance_sensor.distance < 10:
             # Correct angle to avoid the wall on the left
             self.update_drone_angle(20)

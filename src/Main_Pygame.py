@@ -10,8 +10,8 @@ import time
 class DroneSimulation:
     def __init__(self):
         pygame.init()
-        self.map_width = 1000#1366
-        self.map_height = 600#768
+        self.map_width = 1366 #1000
+        self.map_height = 768 #600
         self.screen_width = self.map_width + 100  # Increase width by some pixels
         self.screen_height = self.map_height + 32  # Increase height by some pixels
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -39,6 +39,8 @@ class DroneSimulation:
             "backward": "Backward: 0 cm",
             "leftward": "Left: 0 cm",
             "rightward": "Right: 0 cm",
+            "forward_right_diagonal":"forward_right_diagonal: 0 cm" ,
+            "forward_left_diagonal": "forward_left_diagonal: 0 cm",
             "Distance_Sensors": "Distance Sensors:",
             "IMU": "IMU: 0",
             "Drone's battery": "0 %",
@@ -113,11 +115,14 @@ class DroneSimulation:
                 self.adjust_drone_radius()
                 break
 
-
+    #TODO: WHAT DOES THIS FUNCTION DOES? IT DOESNT UPDATE ANYTHING
     def update_drone_desired_wall_distance(self):
-        deviation = calculate_drone_z_axis_deviation()
+        deviation = self.calculate_drone_z_axis_deviation()
         self.drone.update_desired_wall_distance(deviation)
 
+    #TODO: WE NEED TO FIND ANOTHER CALCULATION THAT WHEN WE ARE AROUND 250CM HEGIHT ITS THE SAME RADIUS
+    # NOW EVERY 60CM THE DRONE GROWS, SO WHEN WE ARE LESS THAN 250 WE LOOK SMALLER AND THEN WE ARE AT 250 THE DRONE GETS BIGGER 
+    # AND IT LOOKS WEIRD BECAUSE THERE IS NO OBSTECLE
     def calculate_drone_z_axis_deviation(self):
         z_middle_value = (self.ceiling_level + self.floor_level) / 2
         return (self.drone.z_level - z_middle_value) / z_middle_value #(self.ceiling_level / 2)
@@ -126,7 +131,7 @@ class DroneSimulation:
     def adjust_drone_radius(self):
         # the drone's radius will be it's initial value + the deviation of its actual height from the middle height value:
         self.drone_radius = int(self.initial_drone_radius + # initial value
-                             self.calculate_drone_z_axis_deviation() * self.initial_drone_radius # deviation precentage
+                             (self.calculate_drone_z_axis_deviation() * self.initial_drone_radius) # deviation precentage
                              + 1) # avoiding radius = 0
 
 
@@ -290,6 +295,7 @@ class DroneSimulation:
         percentage = (yellow_pixels_count / self.total_white_pixels) * 100
         return percentage
 
+    #TODO: ADD KEYS FOR MOVING UP AND DOWN
     def draw_legend_menu(self):
         # Define the legend text
         legend_texts = [
@@ -328,6 +334,7 @@ class DroneSimulation:
         self.load_map(self.map_paths[self.current_map_index])
         self.reset_simulation()
 
+    #TODO: THE COLOR OF THE OBSTACLE IS STATIC
     def spawn_obstacles(self, num_obstacles):
         for _ in range(num_obstacles):
             while True:
@@ -492,7 +499,8 @@ class DroneSimulation:
             self.sensor_texts["Yellow_Percentage"] = f"Yellow_Percentage: {yellow_percentage:.2f} %"
             self.sensor_texts["Autonomous_Mode"] = f"Autonomous_Mode: {is_autonomous}"
             self.sensor_texts["Height"] = f"height: {self.drone.z_level *2.5:.1f} cm"
-
+            self.sensor_texts["forward_right_diagonal"] = f"forward_right_diagonal: {self.drone.forward_right_diagonal_distance_sensor.distance:.1f} cm"
+            self.sensor_texts["forward_left_diagonal"] = f"forward_left_diagonal: {self.drone.forward_left_diagonal_distance_sensor.distance:.1f} cm"
 
             # Display sensor texts
             font_size = 24
