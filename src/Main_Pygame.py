@@ -58,7 +58,8 @@ class DroneSimulation:
 
         self.respawn_drone()
 
-        self.spawn_obstacles(10)  # Spawn 10 obstacles
+        self.amount_of_obstacles_to_spawn = 1
+        self.spawn_obstacles(self.amount_of_obstacles_to_spawn)  # Spawn 10 obstacles
 
         self.clock = pygame.time.Clock()
         self.game_over = False
@@ -288,7 +289,7 @@ class DroneSimulation:
         self.drone.trail.clear()
 
         self.obstacles.clear()  # Clear obstacles
-        self.spawn_obstacles(10)  # Respawn obstacles
+        self.spawn_obstacles(self.amount_of_obstacles_to_spawn)  # Respawn obstacles
         
     def calculate_yellow_percentage(self):
         yellow_pixels_count = len(self.detected_yellow_pixels)
@@ -334,23 +335,37 @@ class DroneSimulation:
         self.load_map(self.map_paths[self.current_map_index])
         self.reset_simulation()
 
-    #TODO: THE COLOR OF THE OBSTACLE IS STATIC
+    def calculate_height_from_grey_shade(self,grey_shade):
+        height = int(self.floor_level + # base height
+                    (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)) # adding a value that wont go more than the ceiling
+                    #/ 2.5) # the height is in pixels, this changes it to cm
+        return height
+
     def spawn_obstacles(self, num_obstacles):
         for _ in range(num_obstacles):
             while True:
-                obstacle_radius = random.randint(10, 20)
+                obstacle_radius = random.randint(20, 30)
                 x = random.randint(obstacle_radius, self.map_width - obstacle_radius)
                 y = random.randint(obstacle_radius, self.map_height - obstacle_radius)
                 if not self.check_collision(x, y, obstacle_radius):
                     grey_shade = 200#= random.randint(50, 200) # 0 = black max height, 255 - white min height
                     color = (grey_shade, grey_shade, grey_shade)
                     # Calculate obstacle height based on grey shade
-                    height = int(self.floor_level + # base height
-                              (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)) # adding a value that wont go more than the ceiling
-                              #/ 2.5) # the height is in pixels, this changes it to cm
+                    height = self.calculate_height_from_grey_shade(grey_shade)
                     print("height: ",height)
                     print("height * 2.5: ",int(height*2.5))
-                    self.obstacles.append((x, y, obstacle_radius, color, height))
+                    
+                    # making "stairs" obstacles:
+                    amount_of_stairs = 4 # adjust as needed
+                    for i in range(amount_of_stairs):
+                        layer_grey_shade = min( 240, grey_shade - i*30)
+                        layer_grey_shade = max( 20, layer_grey_shade)
+                        layer_height = self.calculate_height_from_grey_shade(layer_grey_shade)
+                        print("layer_grey_shade: ", layer_grey_shade)
+                        print("layer_height: ",layer_height)
+                        print("layer_height * 2.5: ",layer_height *2.5)
+                        self.obstacles.append((x, y, int(obstacle_radius *((amount_of_stairs-i)/amount_of_stairs)) , (grey_shade,grey_shade,grey_shade), layer_height))
+                        
                     break
 
     def draw_obstacles(self):
