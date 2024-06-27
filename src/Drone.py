@@ -278,7 +278,9 @@ class Drone:
 
         # to make the drone be able to find all points of trail which are at line of sight:
 
+    # TODO: maor - make it not get points that will make the drone clash on a wall:
     def is_line_of_sight_clear(self, start, end, map_matrix, drone_radius):
+        drone_radius *=1
         def bresenham_line(x0, y0, x1, y1):
             """Bresenham's Line Algorithm"""
             points = []
@@ -315,16 +317,16 @@ class Drone:
             return False
 
         # Right offset
-        right_offset_start = (start[0] + drone_radius+50, start[1])
-        right_offset_end = (end[0] + drone_radius+50, end[1])
+        right_offset_start = (start[0] + drone_radius, start[1])
+        right_offset_end = (end[0] + drone_radius, end[1])
         right_path = bresenham_line(int(right_offset_start[0]), int(right_offset_start[1]), int(right_offset_end[0]),
                                     int(right_offset_end[1]))
         if not is_clear_path(right_path):
             return False
 
         # Left offset
-        left_offset_start = (start[0] - drone_radius - 50, start[1])
-        left_offset_end = (end[0] - drone_radius -50, end[1])
+        left_offset_start = (start[0] - drone_radius, start[1])
+        left_offset_end = (end[0] - drone_radius, end[1])
         left_path = bresenham_line(int(left_offset_start[0]), int(left_offset_start[1]), int(left_offset_end[0]),
                                    int(left_offset_end[1]))
         if not is_clear_path(left_path):
@@ -333,6 +335,15 @@ class Drone:
         return True
 
     def get_next_position_from_returning_home_algo(self, map_matrix, drone_pos, drone_radius):
+        if drone_pos[0] == self.trail[0][0] and drone_pos[1] == self.trail[0][1]:
+            print("reached the start")
+            self.returning_to_start = False
+            return drone_pos
+
+        if self.return_home_path:
+            next_position = self.return_home_path.pop(0)
+            return next_position
+
         current_position = drone_pos  # self.trail[-1]
         trail_points_within_radius = []
 
@@ -345,6 +356,7 @@ class Drone:
 
         if not trail_points_within_radius:
             print("no points on trail have been found")
+            self.returning_to_start = False
             return self.trail[0]
 
 
