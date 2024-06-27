@@ -26,7 +26,7 @@ class Drone:
         self.desired_floor_distance = 100 # 100 px * 2.5 = 2.5 meters
 
         self.orientation_sensor = IMU() #the drone's angle, the drone is looking rightward, beginning at 0
-        self.pid_controller = PIDController(0.065, 0, 0.055, 5) #PIDController(0.07, 0, 0.05, 5)
+        self.pid_controller = PIDController(0.068, 0, 0.04, 5) #PIDController(0.07, 0, 0.05, 5)
         self.forward_pid_controller = PIDController(1.6,0, 0.03, 5)
         self.narrow_pid_controller = PIDController(0.03,0, 0.03, 5)
 
@@ -156,9 +156,9 @@ class Drone:
 
         # Calculate the error from the desired wall distance
         if not self.is_hugging_right: #self.leftward_distance_sensor.distance < 35:  # Detect the wall on the left side
-            error = -1 *(self.leftward_distance_sensor.distance - self.desired_wall_distance)
+            error = -1.2 *(self.leftward_distance_sensor.distance - self.desired_wall_distance)
         else:
-            error = self.rightward_distance_sensor.distance - self.desired_wall_distance
+            error = 1.2 * (self.rightward_distance_sensor.distance - self.desired_wall_distance)
 
         turnning_direction = -1 if self.is_hugging_right else 1
         # Calculate the left / right wall hugging correction using the PID controller
@@ -166,7 +166,7 @@ class Drone:
 
         # Calculate the correction for case the drone's front is getting too close to a wall
         #TODO: CHECK WHAT IS THE OPTIMAL DANGER DISTANCE
-        front_danger_distance = 40 *self.optical_flow_sensor.get_current_speed()
+        front_danger_distance = 50 *self.optical_flow_sensor.get_current_speed()
         if(self.forward_distance_sensor.distance >= front_danger_distance):
             forward_distance_error = 0
         else:

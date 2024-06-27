@@ -14,8 +14,8 @@ class DistanceSensor:
             "backward": 180,
             "leftward": 270,
             "rightward": 90,
-            "forward_right_diagonal": 45,
-            "forward_left_diagonal": 315
+            "forward_right_diagonal": 30,
+            "forward_left_diagonal": 330
         }
         
         dx = math.cos(math.radians(drone_orientation + directions[self.direction]))  # defind the x direction relatively to the drone's angle 
