@@ -403,6 +403,10 @@ class DroneSimulation:
             if keys[pygame.K_2]:
                 self.move_drone_z_axis(-1)
 
+            if keys[pygame.K_h]:
+                print("h was pressed, returning home...")
+                self.drone.returning_to_start = True
+
             if keys[pygame.K_LEFT]:
                 self.move_drone_by_direction("backward")
             if keys[pygame.K_RIGHT]:
@@ -435,21 +439,7 @@ class DroneSimulation:
             # Update the last key state
             self.last_key_state = keys
 
-            # #FOR UPDATING P
-            # if keys[pygame.K_1]:
-            #     self.drone.pid_controller.update_P_value(PID_value_change)
-            # if keys[pygame.K_2]:
-            #     self.drone.pid_controller.update_P_value(-PID_value_change)
-            # #FOR UPDATING I    
-            # if keys[pygame.K_3]:
-            #     self.drone.pid_controller.update_I_value(PID_value_change)
-            # if keys[pygame.K_4]:
-            #     self.drone.pid_controller.update_I_value(-PID_value_change)
-            # #FOR UPDATING D
-            # if keys[pygame.K_5]:
-            #     self.drone.pid_controller.update_D_value(PID_value_change)
-            # if keys[pygame.K_6]:
-            #     self.drone.pid_controller.update_D_value(-PID_value_change)
+
 
             # Check if it's time to update the sensors , we want to update 10 times per second
             current_time = pygame.time.get_ticks()
@@ -463,7 +453,11 @@ class DroneSimulation:
 
             if is_autonomous:
                 # Update drone position by algorithm
-                self.drone_pos = self.drone.update_position_by_algorithm(self.drone_pos, dt)
+                self.drone_pos = self.drone.update_position_by_algorithm(
+                    self.drone_pos,
+                    dt,
+                    self.map_matrix,
+                    self.drone_radius)
             else:
                 self.move_drone_by_direction()
             #checking if the drone crashing into the wall or not  

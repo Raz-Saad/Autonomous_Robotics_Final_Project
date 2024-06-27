@@ -4,6 +4,7 @@ class DistanceSensor:
     def __init__(self, sensor_direction, distance=0):
         self.distance = distance  # the distance from an obstacle
         self.direction = sensor_direction  # forward, backward, left, right , forward_right_diagonal , forward_left_diagonal
+        self.max_range = 120
 
     # update the current distance from an obstacle using the map and drone's position
     def update_values(self, map_matrix, location_on_map, drone_radius, drone_orientation):
