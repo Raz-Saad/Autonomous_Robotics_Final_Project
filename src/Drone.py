@@ -22,11 +22,11 @@ class Drone:
         # because our map is 2d, we need a different kind of calculation of the up/down sensors: #TODO: show raz
         self.up_distance_sensor = DistanceSensorheight("up")
         self.down_distance_sensor = DistanceSensorheight("down")
-        self.height_pid_controller = PIDController(0.005, 0.005, 0.005, 5)  # PID controller for height - we wish to be (for example) 3 meters above the floor
+        self.height_pid_controller = PIDController(0.008, 0, 0.0045, 5)  # PID controller for height - we wish to be (for example) 3 meters above the floor
         self.desired_floor_distance = 100 # 100 px * 2.5 = 2.5 meters
 
         self.orientation_sensor = IMU() #the drone's angle, the drone is looking rightward, beginning at 0
-        self.pid_controller = PIDController(0.068, 0, 0.04, 5) #PIDController(0.07, 0, 0.05, 5)
+        self.pid_controller = PIDController(0.068, 0.0001, 0.04, 5) #PIDController(0.068, 0, 0.04, 5)
         self.forward_pid_controller = PIDController(1.6,0, 0.03, 5)
         self.narrow_pid_controller = PIDController(0.03,0, 0.03, 5)
 
@@ -66,7 +66,7 @@ class Drone:
 
         # for slowing down the drone whenever is flying underneath obstacles:
         # if obstacles:
-        #     self.optical_flow_sensor.current_speed = 0.7
+        #     self.optical_flow_sensor.current_speed = 0.9
         # else:
         #     self.optical_flow_sensor.current_speed = 1
 
@@ -103,8 +103,6 @@ class Drone:
     def update_drone_angle(self,angle_delta):
         self.orientation_sensor.update_orientation ((self.orientation_sensor.drone_orientation + angle_delta) % 360)
 
-    def check_for_repeated_path(self):
-        return
 
     def switch_wall(self ):
         self.use_pid = False
@@ -166,7 +164,7 @@ class Drone:
 
         # Calculate the correction for case the drone's front is getting too close to a wall
         #TODO: CHECK WHAT IS THE OPTIMAL DANGER DISTANCE
-        front_danger_distance = 50 *self.optical_flow_sensor.get_current_speed()
+        front_danger_distance = 40 *self.optical_flow_sensor.get_current_speed()
         if(self.forward_distance_sensor.distance >= front_danger_distance):
             forward_distance_error = 0
         else:
@@ -422,10 +420,10 @@ class Drone:
     def drone_about_to_touch_wall(self):
         drone_speed = self.optical_flow_sensor.get_current_speed()
         return ((self.forward_distance_sensor.distance < 22.5)
-                or (self.rightward_distance_sensor.distance < 6)
-                or (self.leftward_distance_sensor.distance < 6)
-                or (self.forward_right_diagonal_distance_sensor.distance < 6)
-                or (self.forward_left_diagonal_distance_sensor.distance < 6))
+                or (self.rightward_distance_sensor.distance < 7.5)
+                or (self.leftward_distance_sensor.distance < 7.5)
+                or (self.forward_right_diagonal_distance_sensor.distance < 7.5)
+                or (self.forward_left_diagonal_distance_sensor.distance < 7.5))
 
     def set_starting_position(self, position):
         self.starting_position = position

@@ -58,7 +58,7 @@ class DroneSimulation:
 
         self.respawn_drone()
 
-        self.amount_of_obstacles_to_spawn = 1
+        self.amount_of_obstacles_to_spawn = 10
         self.spawn_obstacles(self.amount_of_obstacles_to_spawn)  # Spawn 10 obstacles
 
         self.clock = pygame.time.Clock()
@@ -125,15 +125,16 @@ class DroneSimulation:
     # NOW EVERY 60CM THE DRONE GROWS, SO WHEN WE ARE LESS THAN 250 WE LOOK SMALLER AND THEN WE ARE AT 250 THE DRONE GETS BIGGER 
     # AND IT LOOKS WEIRD BECAUSE THERE IS NO OBSTECLE
     def calculate_drone_z_axis_deviation(self):
+        z_epsilon_value = 17
         z_middle_value = (self.ceiling_level + self.floor_level) / 2
-        return (self.drone.z_level - z_middle_value) / z_middle_value #(self.ceiling_level / 2)
+        return (self.drone.z_level - (z_middle_value-z_epsilon_value)) / z_middle_value #(self.ceiling_level / 2)
 
     # adjust the drone's radius by it's z axis, for visualization:
     def adjust_drone_radius(self):
         # the drone's radius will be it's initial value + the deviation of its actual height from the middle height value:
         self.drone_radius = int(self.initial_drone_radius + # initial value
-                             (self.calculate_drone_z_axis_deviation() * self.initial_drone_radius) # deviation precentage
-                             + 1) # avoiding radius = 0
+                             (self.calculate_drone_z_axis_deviation() * self.initial_drone_radius)) # deviation precentage
+                             #+ 1) # avoiding radius = 0
 
 
     def check_map_z_collision(self):
