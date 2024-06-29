@@ -58,7 +58,7 @@ class DroneSimulation:
 
         self.respawn_drone()
 
-        self.amount_of_obstacles_to_spawn = 1
+        self.amount_of_obstacles_to_spawn = 5
         self.spawn_obstacles(self.amount_of_obstacles_to_spawn)  # Spawn 10 obstacles
 
         self.clock = pygame.time.Clock()
