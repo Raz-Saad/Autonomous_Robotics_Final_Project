@@ -21,3 +21,17 @@ class BatterySensor:
     def reset_battrey(self):
         self.battery_precentage = 100
         self.remaining_ticks_to_battrey_life = self.amount_of_decisecond_drone_can_fly
+
+    def add_precentage_to_battery(self,precentage):
+        one_precentage_value = self.amount_of_decisecond_drone_can_fly / 100
+
+        self.remaining_ticks_to_battrey_life += one_precentage_value * precentage
+
+        # cap to the maximum value:
+        if self.remaining_ticks_to_battrey_life > self.amount_of_decisecond_drone_can_fly:
+            self.remaining_ticks_to_battrey_life = self.amount_of_decisecond_drone_can_fly
+
+        self.battery_precentage = (self.remaining_ticks_to_battrey_life / self.amount_of_decisecond_drone_can_fly) * 100  # update the battery precentage
+
+
+
