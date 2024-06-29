@@ -6,6 +6,7 @@ import math
 from OpticalFlow import OpticalFlow
 from PIDController import PIDController
 import time
+
    
 class Drone:
     def __init__(self):
@@ -26,7 +27,7 @@ class Drone:
         self.desired_floor_distance = 100 # 100 px * 2.5 = 2.5 meters
 
         self.orientation_sensor = IMU() #the drone's angle, the drone is looking rightward, beginning at 0
-        self.pid_controller = PIDController(0.068, 0.0001, 0.04, 5) #PIDController(0.068, 0, 0.04, 5)
+        self.pid_controller = PIDController(0.066, 0, 0.04, 5) #PIDController(0.068, 0, 0.04, 5)
         self.forward_pid_controller = PIDController(1.6,0, 0.03, 5)
         self.narrow_pid_controller = PIDController(0.03,0, 0.03, 5)
 
@@ -222,7 +223,7 @@ class Drone:
 
 
 
-    def update_position_by_algorithm(self, drone_pos, dt,map_matrix, drone_radius):
+    def update_position_by_algorithm(self, drone_pos, dt,map_matrix, drone_radius, screen,drone_positions):
 
         self.change_z_level_by_pid(dt)
 
@@ -234,8 +235,8 @@ class Drone:
         #checking if in returing home mode is activated
         if self.returning_to_start:
             # Get the next position on the return trail
-            # new_pos = self.get_next_position_for_trailback()
-            new_pos = self.get_next_position_from_returning_home_algo(map_matrix,drone_pos, drone_radius)
+            # new_pos = self.get_next_position_for_trailback() # naive first version of returning home
+            new_pos = self.get_next_position_from_returning_home_algo(map_matrix,drone_pos, drone_radius, screen,drone_positions)
 
         else:
             # checking if the drone can fly
@@ -276,9 +277,10 @@ class Drone:
 
         # to make the drone be able to find all points of trail which are at line of sight:
 
-    # TODO: maor - make it not get points that will make the drone clash on a wall:
-    def is_line_of_sight_clear(self, start, end, map_matrix, drone_radius):
-        drone_radius *=1
+    # TODO: maor - remove screen and drone positions from the params of the func + all calling funcs
+    def is_line_of_sight_clear(self, start, end, map_matrix, drone_radius, screen, drone_positions):
+
+        drone_radius *= 2 # it makes sure it doesnt get points that will make the drone clash on a wall
         def bresenham_line(x0, y0, x1, y1):
             """Bresenham's Line Algorithm"""
             points = []
@@ -314,28 +316,54 @@ class Drone:
         if not is_clear_path(main_path):
             return False
 
+        # Calculate the offsets perpendicular to the line
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        length = math.sqrt(dx ** 2 + dy ** 2)
+        dx /= length +1
+        dy /= length +1
+
+        # Perpendicular offsets
+        offset_x = -dy * drone_radius
+        offset_y = dx * drone_radius
+
         # Right offset
-        right_offset_start = (start[0] + drone_radius, start[1])
-        right_offset_end = (end[0] + drone_radius, end[1])
+        right_offset_start = (start[0] + offset_x, start[1] + offset_y)
+        right_offset_end = (end[0] + offset_x, end[1] + offset_y)
         right_path = bresenham_line(int(right_offset_start[0]), int(right_offset_start[1]), int(right_offset_end[0]),
                                     int(right_offset_end[1]))
         if not is_clear_path(right_path):
             return False
 
         # Left offset
-        left_offset_start = (start[0] - drone_radius, start[1])
-        left_offset_end = (end[0] - drone_radius, end[1])
+        left_offset_start = (start[0] - offset_x, start[1] - offset_y)
+        left_offset_end = (end[0] - offset_x, end[1] - offset_y)
         left_path = bresenham_line(int(left_offset_start[0]), int(left_offset_start[1]), int(left_offset_end[0]),
                                    int(left_offset_end[1]))
         if not is_clear_path(left_path):
             return False
 
+        # # Collect positions for visualization or other purposes
+        # for pos in left_path:
+        #     drone_positions.append(pos)  # Add position to the trail
+        # for pos in right_path:
+        #     drone_positions.append(pos)  # Add position to the trail
+        # for pos in main_path:
+        #     drone_positions.append(pos)  # Add position to the trail
+
         return True
 
-    def get_next_position_from_returning_home_algo(self, map_matrix, drone_pos, drone_radius):
-        if drone_pos[0] == self.trail[0][0] and drone_pos[1] == self.trail[0][1]:
+
+
+    def get_next_position_from_returning_home_algo(self, map_matrix, drone_pos, drone_radius, screen,drone_positions):
+
+        # TODO: maor - the drone not always understand that it reached the start, make it with an area
+        allowed_field_error = 10
+        if (abs(drone_pos[0] - self.trail[0][0]) <= allowed_field_error
+                and abs(drone_pos[1] - self.trail[0][1]) <= allowed_field_error):
             print("reached the start")
             self.returning_to_start = False
+            self.return_home_path.clear()
             return drone_pos
 
         if self.return_home_path:
@@ -349,7 +377,7 @@ class Drone:
         for idx, point in enumerate(self.trail):
             distance = math.sqrt((current_position[0] - point[0]) ** 2 + (current_position[1] - point[1]) ** 2)
             if distance <= self.leftward_distance_sensor.max_range * 2:
-                if self.is_line_of_sight_clear(current_position, point, map_matrix, drone_radius):
+                if self.is_line_of_sight_clear(current_position, point, map_matrix, drone_radius, screen,drone_positions):
                     trail_points_within_radius.append((idx, point))
 
         if not trail_points_within_radius:
@@ -369,8 +397,8 @@ class Drone:
         #print(path)
         self.return_home_path.extend(path)  # Append all points from the path to return_home_path
         #print("reached post extending")
-        self.update_angle_to_next_position_for_trailback(self.return_home_path[0])
         next_position = self.return_home_path.pop(0)
+        self.update_angle_by_position(drone_pos,path[-1])
         return next_position
 
     def get_path_from_current_to_desired(self, current_pos, desired_pos):
@@ -399,12 +427,12 @@ class Drone:
         sy = 1 if y1 < y2 else -1
         err = dx - dy
 
-        take_flag = True
+        #take_flag = True
         while (x1, y1) != (x2, y2):
 
-            if take_flag:
-                path.append((x1, y1))
-            take_flag = not take_flag
+            #if take_flag:
+            path.append((x1, y1))
+            #take_flag = not take_flag
 
             e2 = err * 2
             if e2 > -dy:
@@ -452,6 +480,17 @@ class Drone:
 
         # Update the drone's angle to face the next position
         self.orientation_sensor.update_orientation(angle_to_next_position)
+        print("orientation: ",self.orientation_sensor.drone_orientation)
+
+    def update_angle_by_position(self, current_position, next_position):
+        # Calculate the angle needed to face the next position
+        dx = next_position[0] - current_position[0]
+        dy = next_position[1] - current_position[1]
+        angle_to_next_position = math.degrees(math.atan2(dy, dx))
+
+        # Update the drone's angle to face the next position
+        self.orientation_sensor.update_orientation(angle_to_next_position)
+        print("orientation: ",self.orientation_sensor.drone_orientation)
 
     def is_in_trail_environment(self, point, radius = 0.5):
         for trail_point in self.trail:

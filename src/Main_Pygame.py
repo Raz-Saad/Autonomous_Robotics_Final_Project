@@ -58,7 +58,7 @@ class DroneSimulation:
 
         self.respawn_drone()
 
-        self.amount_of_obstacles_to_spawn = 10
+        self.amount_of_obstacles_to_spawn = 0
         self.spawn_obstacles(self.amount_of_obstacles_to_spawn)  # Spawn 10 obstacles
 
         self.clock = pygame.time.Clock()
@@ -274,6 +274,7 @@ class DroneSimulation:
         self.screen.blit(self.detected_surface, (0, 0))
 
     def reset_simulation(self):
+        self.drone.returning_to_start = False
         self.detected_pixels.clear()  # Clear detected points
         self.respawn_drone()  # Respawn the drone
         self.drone_positions.clear()  # Clear trail
@@ -458,7 +459,7 @@ class DroneSimulation:
                     self.drone_pos,
                     dt,
                     self.map_matrix,
-                    self.drone_radius)
+                    self.drone_radius, self.screen,self.drone_positions)
             else:
                 self.move_drone_by_direction()
             #checking if the drone crashing into the wall or not  
