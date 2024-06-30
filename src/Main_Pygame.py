@@ -31,8 +31,6 @@ class DroneSimulation:
         self.load_map(self.map_paths[self.current_map_index])
 
         self.sensor_texts = {
-            "Height": "height: 0 cm",
-            "Autonomous_Mode": "Autonomous Mode: True",
             "upward": "Upward: 0 cm",
             "downward": "Downward: 0 cm",
             "forward": "Forward: 0 cm",
@@ -42,6 +40,8 @@ class DroneSimulation:
             "forward_right_diagonal":"forward_right_diagonal: 0 cm" ,
             "forward_left_diagonal": "forward_left_diagonal: 0 cm",
             "Distance_Sensors": "Distance Sensors:",
+            "Height": "Drone's height: 0 cm",
+            "Autonomous_Mode": "Autonomous Mode: True",
             "IMU": "IMU: 0",
             "Drone's battery": "0 %",
             "Drone's speed": "0",
@@ -59,7 +59,7 @@ class DroneSimulation:
         self.respawn_drone()
 
         self.amount_of_obstacles_to_spawn = 5
-        self.spawn_obstacles(self.amount_of_obstacles_to_spawn)  # Spawn 10 obstacles
+        self.spawn_obstacles(self.amount_of_obstacles_to_spawn)
 
         self.clock = pygame.time.Clock()
         self.game_over = False
@@ -116,19 +116,11 @@ class DroneSimulation:
                 self.adjust_drone_radius()
                 break
 
-    #TODO: WHAT DOES THIS FUNCTION DO? IT DOESNT UPDATE ANYTHING
-    # MAOR - update - I've added it to the run_simulation func, it now adjust the drone's
-    # distance from wall based on it's radius size deviation from height changes (very noticeable in the simulation).
-    # ctrl click the func to see the usage's location
-    # please delete the comment if all is good
+
     def update_drone_desired_wall_distance(self):
         deviation = self.calculate_drone_z_axis_deviation()
         self.drone.update_desired_wall_distance(deviation)
 
-    #TODO: WE NEED TO FIND ANOTHER CALCULATION THAT WHEN WE ARE AROUND 250CM HEGIHT ITS THE SAME RADIUS
-    # NOW EVERY 60CM THE DRONE GROWS, SO WHEN WE ARE LESS THAN 250 WE LOOK SMALLER AND THEN WE ARE AT 250 THE DRONE GETS BIGGER 
-    # AND IT LOOKS WEIRD BECAUSE THERE IS NO OBSTECLE.
-    # MAOR - is this solved by epsilon_value? if so, delete the comment
     def calculate_drone_z_axis_deviation(self):
         z_epsilon_value = 17
         z_middle_value = (self.ceiling_level + self.floor_level) / 2
@@ -314,7 +306,7 @@ class DroneSimulation:
     def calculate_yellow_percentage(self):
         yellow_pixels_count = len(self.detected_yellow_pixels)
         percentage = (yellow_pixels_count / self.total_white_pixels) * 100
-        return percentage
+        return 100.0 if percentage > 100 else percentage
 
     def draw_legend_menu(self):
         # Define the legend text
@@ -331,12 +323,10 @@ class DroneSimulation:
             "1/2: Increase/Decrease Height",
             "H: Return Home",
             "M: Change Map"
-
-
         ]
 
         # Create a semi-transparent background for the legend
-        legend_surface = pygame.Surface((400, 300))
+        legend_surface = pygame.Surface((400, 400))
         legend_surface.set_alpha(200)  # Transparency
         legend_surface.fill((50, 50, 50))
 
@@ -456,8 +446,6 @@ class DroneSimulation:
             # Update the last key state
             self.last_key_state = keys
 
-
-
             # Check if it's time to update the sensors , we want to update 10 times per second
             current_time = pygame.time.get_ticks()
             if current_time - sensors_update_timer >= interval:
@@ -500,10 +488,6 @@ class DroneSimulation:
             for pos in self.drone_positions:
                 pygame.draw.circle(self.screen, (0, 0, 255), pos, 2)
 
-
-
-
-
             # Draw arrow on the drone indicating its direction
             angle_rad = math.radians(self.drone.orientation_sensor.drone_orientation)
             end_x = self.drone_pos[0] + 15 * precentage_of_drone_height_deviation * math.cos(angle_rad)
@@ -526,7 +510,7 @@ class DroneSimulation:
             self.sensor_texts["Drone's speed"] = f"Drone's speed: {self.drone.optical_flow_sensor.get_current_speed():.1f}"
             self.sensor_texts["Yellow_Percentage"] = f"Yellow_Percentage: {yellow_percentage:.2f} %"
             self.sensor_texts["Autonomous_Mode"] = f"Autonomous_Mode: {is_autonomous}"
-            self.sensor_texts["Height"] = f"height: {self.drone.z_level *2.5:.1f} cm"
+            self.sensor_texts["Height"] = f"Drone's height: {self.drone.z_level *2.5:.1f} cm"
             self.sensor_texts["forward_right_diagonal"] = f"forward_right_diagonal: {self.drone.forward_right_diagonal_distance_sensor.distance:.1f} cm"
             self.sensor_texts["forward_left_diagonal"] = f"forward_left_diagonal: {self.drone.forward_left_diagonal_distance_sensor.distance:.1f} cm"
 
@@ -534,6 +518,12 @@ class DroneSimulation:
             font_size = 24
             font = pygame.font.SysFont(None, font_size)
             for i, (key, text) in enumerate(self.sensor_texts.items()):
+                if key == "Distance_Sensors":
+                    font.set_underline(True)
+                    font.set_bold(True)
+                else:
+                    font.set_underline(False)
+                    font.set_bold(False)
                 text_surface = font.render(text, True, (0, 204, 0))
                 self.screen.blit(text_surface, (0, self.map_height - 15 - i * 30))
 

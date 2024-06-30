@@ -1,4 +1,3 @@
-import math
 
 class DistanceSensorheight:
     def __init__(self, sensor_direction, distance=0):
