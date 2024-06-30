@@ -19,8 +19,8 @@ class Drone:
         self.leftward_distance_sensor = DistanceSensor("leftward")
         self.rightward_distance_sensor = DistanceSensor("rightward")
 
-        #TODO: RAZ'S IDEA - BLIT NON-VISABLE FLOOR AND CEILING ONTO THE MAP SO WE CAN KNOW THE HIGHT 
-        # because our map is 2d, we need a different kind of calculation of the up/down sensors: #TODO: show raz
+        #   TODO: RAZ'S IDEA - BLIT NON-VISABLE FLOOR AND CEILING ONTO THE MAP SO WE CAN KNOW THE HEIGHT
+        # because our map is 2d, we need a different kind of calculation of the up/down sensors:
         self.up_distance_sensor = DistanceSensorheight("up")
         self.down_distance_sensor = DistanceSensorheight("down")
         self.height_pid_controller = PIDController(0.008, 0, 0.0045, 5)  # PID controller for height - we wish to be (for example) 3 meters above the floor
@@ -47,8 +47,8 @@ class Drone:
         self.drone_idle = False # flag to check if the drone stop because it was about to it a wall
 
         # 3d expantion:
-        #TODO: WHY 50?
-        self.z_level = 50 # the actual height of the drone in the map
+        self.z_level = 50 # the actual height of the drone in the map, initial value is irrelevant,
+                          # as it updates later on
 
         # returning home parameters:
         self.return_home_path = []  # empty list to store all the calculated path to home
@@ -68,12 +68,7 @@ class Drone:
         self.up_distance_sensor.update_values(self.z_level, drone_radius,floor_level,ceiling_level, obstacles)     # different calculation, requires different inputs
         self.down_distance_sensor.update_values(self.z_level, drone_radius, floor_level,ceiling_level, obstacles)   # different calculation, requires different inputs
 
-        # for slowing down the drone whenever is flying underneath obstacles:
-        # if obstacles:
-        #     self.optical_flow_sensor.current_speed = 0.9
-        # else:
-        #     self.optical_flow_sensor.current_speed = 1
-
+        # when the drone is in charging mode, don't use the battery:
         if not self.charging_drone:
             self.battery_sensor.update_battrey_precentage()
 
@@ -98,7 +93,7 @@ class Drone:
             "rightward": 90
         }
 
-        dx = math.cos(math.radians(self.orientation_sensor.drone_orientation + directions[direction])) * self.optical_flow_sensor.current_speed  # moves in the x axis in a speed relatively to the drone's angle 
+        dx = math  .cos(math.radians(self.orientation_sensor.drone_orientation + directions[direction])) * self.optical_flow_sensor.current_speed  # moves in the x axis in a speed relatively to the drone's angle
         dy = math.sin(math.radians(self.orientation_sensor.drone_orientation + directions[direction])) * self.optical_flow_sensor.current_speed  # moves in the y axis in a speed relatively to the drone's angle
         new_pos = [drone_pos[0] + dx, drone_pos[1] + dy]
 
@@ -176,16 +171,12 @@ class Drone:
 
         forward_correction = self.forward_pid_controller.update(forward_distance_error, dt)
 
-
+        # calculate the correction for the case where the drone is in a narrow path and needs
+        # to adjust to both walls:
         narrow_path_error = 0
-        # if self.is_hugging_right and self.forward_left_diagonal_distance_sensor.distance < self.rightward_distance_sensor.distance :
-        #     narrow_path_error = self.rightward_distance_sensor.distance - self.forward_left_diagonal_distance_sensor.distance
 
         if self.is_hugging_right and self.leftward_distance_sensor.distance < self.rightward_distance_sensor.distance :
             narrow_path_error = self.rightward_distance_sensor.distance - self.leftward_distance_sensor.distance
-
-        # elif not self.is_hugging_right and self.leftward_distance_sensor.distance > self.forward_right_diagonal_distance_sensor.distance :
-        #     narrow_path_error = self.forward_right_diagonal_distance_sensor.distance - self.leftward_distance_sensor.distance
 
         elif not self.is_hugging_right and self.leftward_distance_sensor.distance > self.rightward_distance_sensor.distance :
             narrow_path_error = self.rightward_distance_sensor.distance - self.leftward_distance_sensor.distance
@@ -196,7 +187,7 @@ class Drone:
         overall_correction +=  (forward_correction * turnning_direction) + narrow_correction
 
         # Limit the correction to prevent aggressive maneuvers
-        max_correction = 10  # Define a maximum correction angle
+        max_correction = 10  # a maximum correction angle
         overall_correction = max(-max_correction, min(overall_correction, max_correction))
 
         # Adjust the drone's angle based on the correction
@@ -209,18 +200,11 @@ class Drone:
 
 
     def change_z_level_by_pid(self, dt):
-        #print("current distance to floor: ",self.down_distance_sensor.distance)
         # calculate the error from the desired state:
         error = self.desired_floor_distance - self.down_distance_sensor.distance
-        #print("error: ",error)
+
         # calculate the change amount needed given the current delta-time:
         height_correction = self.height_pid_controller.update(error,dt)
-        #print("height_correction: ",height_correction)
-
-        # # Normalize the height correction to be within the range of -1 to 1
-        # max_correction = 10  # Adjust this value as needed
-        # normalized_correction = max(-1, min(height_correction / max_correction, 1))
-        # print("normalized_correction: ",normalized_correction)
 
         self.change_z_level(height_correction)
 
@@ -232,25 +216,26 @@ class Drone:
             self.returning_to_explore = True
 
 
-    def update_position_by_algorithm(self, drone_pos, dt,map_matrix, drone_radius, screen,drone_positions):
-
+    def update_position_by_algorithm(self, drone_pos, dt,map_matrix, drone_radius):
+        # control the drone's height:
         self.change_z_level_by_pid(dt)
 
         new_pos = drone_pos
-        # Check battery level and initiate return if necessary
+        # Check battery level and initiate return home mode if necessary:
         if self.battery_sensor.get_battrey_precentage() <= 50 and not self.charging_drone:
             self.returning_to_start = True
 
-        #checking if in returing home mode is activated
+        #checking if in returning home mode is activated:
         if self.returning_to_start:
             # Get the next position on the return trail
-            # new_pos = self.get_next_position_for_trailback() # naive first version of returning home
-            new_pos = self.get_next_position_from_returning_home_algo(map_matrix,drone_pos, drone_radius, screen,drone_positions)
+            new_pos = self.get_next_position_from_returning_home_algo(map_matrix,drone_pos, drone_radius)
 
+        #checking if in charging mode is activated:
         elif self.charging_drone:
             new_pos = drone_pos
             self.reload_battery()
 
+        #checking if in returing to explore mode is activated:
         elif self.returning_to_explore:
             new_pos = self.get_back_to_exploring_from_last_point(drone_pos)
 
@@ -274,7 +259,7 @@ class Drone:
                         self.cooldown_start_time_wall_switching = time.time()
 
             else:
-                # checking if the drone is idle and if so it need to correct is angle to avoid touching the wall
+                # checking if the drone is idle and if so it need to correct it's angle to avoid touching the wall
                 if self.drone_idle:
                     new_pos = self.wall_following(drone_pos,dt) # in this state the drone is not moving , only adjusting is angle
                     #if the drone is no longer about to touch the wall, switch the flag to not idle
@@ -289,12 +274,10 @@ class Drone:
 
         return new_pos
 
-        # returning home imporvements:
+    # returning home imporvements:
 
-        # to make the drone be able to find all points of trail which are at line of sight:
-
-    # TODO: maor - remove screen and drone positions from the params of the func + all calling funcs
-    def is_line_of_sight_clear(self, start, end, map_matrix, drone_radius, screen, drone_positions):
+    # to make the drone be able to find all points of trail which are at line of sight:
+    def is_line_of_sight_clear(self, start, end, map_matrix, drone_radius):
 
         drone_radius *= 2 # it makes sure it doesnt get points that will make the drone clash on a wall
         def bresenham_line(x0, y0, x1, y1):
@@ -323,16 +306,17 @@ class Drone:
             for (x, y) in path:
                 if x < 0 or x >= len(map_matrix[0]) or y < 0 or y >= len(map_matrix):
                     return False
-                if map_matrix[y][x] == 1:  # There's an obstacle
+                if map_matrix[y][x] == 1:  # There's a wall in the way
                     return False
             return True
 
-        # Main line
+        # Main line - make a path from curr position to desired point and check if the path is clear from walls:
         main_path = bresenham_line(int(start[0]), int(start[1]), int(end[0]), int(end[1]))
         if not is_clear_path(main_path):
             return False
 
-        # Calculate the offsets perpendicular to the line
+        # Calculate the offsets perpendicular to the line, in order to check if the drone with it's thick
+        # radius could safely go through the path:
         dx = end[0] - start[0]
         dy = end[1] - start[1]
         length = math.sqrt(dx ** 2 + dy ** 2)
@@ -359,72 +343,45 @@ class Drone:
         if not is_clear_path(left_path):
             return False
 
-        # # Collect positions for visualization or other purposes
-        # for pos in left_path:
-        #     drone_positions.append(pos)  # Add position to the trail
-        # for pos in right_path:
-        #     drone_positions.append(pos)  # Add position to the trail
-        # for pos in main_path:
-        #     drone_positions.append(pos)  # Add position to the trail
-
         return True
 
 
-
-    def get_next_position_from_returning_home_algo(self, map_matrix, drone_pos, drone_radius, screen,drone_positions):
+    # this is the main function to return the drone to starting point in an improved way:
+    def get_next_position_from_returning_home_algo(self, map_matrix, drone_pos, drone_radius):
 
         # if gotten close to the starting point then the returning home process is done:
         allowed_field_error = 10
         if (abs(drone_pos[0] - self.trail[0][0]) <= allowed_field_error
                 and abs(drone_pos[1] - self.trail[0][1]) <= allowed_field_error):
-            print("reached the start")
             self.returning_to_start = False
             self.charging_drone = True
-            # self.returning_to_explore = True
             self.return_home_path.clear()
-            self.return_to_exploring_path.insert(0,drone_pos) # stack behavior - LIFO insert
+            self.return_to_exploring_path.insert(0,drone_pos) # stack behavior - LIFO insert, to record the trail back
             return drone_pos
 
         if self.return_home_path:
             next_position = self.return_home_path.pop(0)
-            self.return_to_exploring_path.insert(0,next_position) # record the path back home
+            self.return_to_exploring_path.insert(0,next_position) # record the path back from home
             return next_position
 
-        current_position = drone_pos  # self.trail[-1]
+        current_position = drone_pos
         trail_points_within_radius = []
 
-        # finding all tail points in range and with clear line of sight:
+        # finding all tail points in range and with clear line of sight to current position:
         for idx, point in enumerate(self.trail):
             distance = math.sqrt((current_position[0] - point[0]) ** 2 + (current_position[1] - point[1]) ** 2)
             if distance <= self.leftward_distance_sensor.max_range * 2:
-                if self.is_line_of_sight_clear(current_position, point, map_matrix, drone_radius, screen,drone_positions):
+                if self.is_line_of_sight_clear(current_position, point, map_matrix, drone_radius):
                     trail_points_within_radius.append((idx, point))
 
-        if not trail_points_within_radius:
+        if not trail_points_within_radius: # this shouldn't happen because the drone always has a trail, this is for extreme buggy cases
             print("no points on trail have been found")
             self.returning_to_start = False
-            return self.trail[0]
+            return current_position
 
 
-        # Find the point with the closest index to the start (trail[0])
+        # Find the point with the closest index to the starting point (which is trail[0])
         closest_point = min(trail_points_within_radius, key=lambda p: abs(p[0]))
-
-        # TODO: maor - check if i can integrate this for better returning algorithm:
-        # # Find the point with the closest index to the start or its neighboring points:
-        # neighboring_points_to_start_point = []
-        # for idx, point in enumerate(self.trail):
-        #     distance = math.sqrt((self.trail[0][0] - point[0]) ** 2 + (self.trail[0][1] - point[1]) ** 2)
-        #     if distance <= self.leftward_distance_sensor.max_range * 2:
-        #         if self.is_line_of_sight_clear(self.trail[0], point, map_matrix, drone_radius, screen,drone_positions):
-        #             neighboring_points_to_start_point.append((idx, point))
-        #
-        # if neighboring_points_to_start_point:
-        #     # Find the closest point to any of these neighboring points
-        #     closest_point = min(
-        #         trail_points_within_radius,
-        #         key=lambda p: min(abs(p[0] - neighbor[0]) for neighbor in neighboring_points_to_start_point)
-        #     )
-
 
         # make a path from current pos to the closest point to start:
         path = self.get_path_from_current_to_desired(drone_pos, closest_point[1])
@@ -432,7 +389,7 @@ class Drone:
         self.return_home_path.extend(path)  # Append all points from the path to return_home_path
 
         next_position = self.return_home_path.pop(0)
-        self.update_angle_by_position(drone_pos,path[-1])
+        self.update_angle_by_position(drone_pos,path[-1]) # each path is a straight line, make the drone look towards the end of that line
         return next_position
 
     def get_path_from_current_to_desired(self, current_pos, desired_pos):
@@ -461,12 +418,9 @@ class Drone:
         sy = 1 if y1 < y2 else -1
         err = dx - dy
 
-        #take_flag = True
         while (x1, y1) != (x2, y2):
 
-            #if take_flag:
             path.append((x1, y1))
-            #take_flag = not take_flag
 
             e2 = err * 2
             if e2 > -dy:
@@ -494,16 +448,12 @@ class Drone:
     def update_position(self, position):
         if not self.returning_to_start:
             self.trail.append(position)
-        # elif self.trail: #
-        #     self.trail.pop()  # Remove the last position as the drone moves back
-
 
 
     # getting the drone back to the place it returned home from:
     def get_back_to_exploring_from_last_point(self,drone_pos):
 
         new_pos = self.return_to_exploring_path.pop(0) # get the next point for the drone
-
 
         # for making the drone look at a good distance:
         pos_to_aim_the_drone_at = None
@@ -521,25 +471,6 @@ class Drone:
             self.update_angle_by_position(drone_pos, pos_to_aim_the_drone_at)
         return new_pos
 
-    def get_next_position_for_trailback(self):
-        if len(self.trail) > 1:
-            next_position = self.trail[-2 * self.optical_flow_sensor.max_speed if -2 * self.optical_flow_sensor.max_speed >= -len(self.trail) else 0]  # Get the second to last position
-            self.update_angle_to_next_position_for_trailback(next_position)
-            return next_position
-        else:
-            return self.starting_position
-
-    def update_angle_to_next_position_for_trailback(self, next_position):
-        # Calculate the angle needed to face the next position
-        current_position = self.trail[-1]
-        dx = next_position[0] - current_position[0]
-        dy = next_position[1] - current_position[1]
-        angle_to_next_position = math.degrees(math.atan2(dy, dx))
-
-        # Update the drone's angle to face the next position
-        self.orientation_sensor.update_orientation(angle_to_next_position)
-        #print("orientation: ",self.orientation_sensor.drone_orientation)
-
     def update_angle_by_position(self, current_position, next_position):
         # Calculate the angle needed to face the next position
         dx = next_position[0] - current_position[0]
@@ -548,8 +479,8 @@ class Drone:
 
         # Update the drone's angle to face the next position
         self.orientation_sensor.update_orientation(angle_to_next_position)
-        #print("orientation: ",self.orientation_sensor.drone_orientation)
 
+    # in case the drone is touching the trail of itself or is very close to it, for wall switching:
     def is_in_trail_environment(self, point, radius = 0.5):
         for trail_point in self.trail:
             distance = math.sqrt((point[0] - trail_point[0]) ** 2 + (point[1] - trail_point[1]) ** 2)

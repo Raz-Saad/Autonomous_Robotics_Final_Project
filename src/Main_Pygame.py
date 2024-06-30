@@ -109,21 +109,26 @@ class DroneSimulation:
         while True:
             x = random.randint(self.drone_radius, self.map_width - self.drone_radius - 1)
             y = random.randint(self.drone_radius, self.map_height - self.drone_radius - 1)
-            drone_z_level = (self.ceiling_level + self.floor_level) / 2 # = random.randint(self.floor_level+1, self.ceiling_level-1) # for changing drone's height
+            drone_z_level = (self.ceiling_level + self.floor_level) / 2
             self.drone.z_level = drone_z_level
-            if not self.check_collision(x, y): # TODO: implement checking object collision
+            if not self.check_collision(x, y):
                 self.drone_pos = [x, y]
                 self.adjust_drone_radius()
                 break
 
-    #TODO: WHAT DOES THIS FUNCTION DOES? IT DOESNT UPDATE ANYTHING
+    #TODO: WHAT DOES THIS FUNCTION DO? IT DOESNT UPDATE ANYTHING
+    # MAOR - update - I've added it to the run_simulation func, it now adjust the drone's
+    # distance from wall based on it's radius size deviation from height changes (very noticeable in the simulation).
+    # ctrl click the func to see the usage's location
+    # please delete the comment if all is good
     def update_drone_desired_wall_distance(self):
         deviation = self.calculate_drone_z_axis_deviation()
         self.drone.update_desired_wall_distance(deviation)
 
     #TODO: WE NEED TO FIND ANOTHER CALCULATION THAT WHEN WE ARE AROUND 250CM HEGIHT ITS THE SAME RADIUS
     # NOW EVERY 60CM THE DRONE GROWS, SO WHEN WE ARE LESS THAN 250 WE LOOK SMALLER AND THEN WE ARE AT 250 THE DRONE GETS BIGGER 
-    # AND IT LOOKS WEIRD BECAUSE THERE IS NO OBSTECLE
+    # AND IT LOOKS WEIRD BECAUSE THERE IS NO OBSTECLE.
+    # MAOR - is this solved by epsilon_value? if so, delete the comment
     def calculate_drone_z_axis_deviation(self):
         z_epsilon_value = 17
         z_middle_value = (self.ceiling_level + self.floor_level) / 2
@@ -134,26 +139,29 @@ class DroneSimulation:
         # the drone's radius will be it's initial value + the deviation of its actual height from the middle height value:
         self.drone_radius = int(self.initial_drone_radius + # initial value
                              (self.calculate_drone_z_axis_deviation() * self.initial_drone_radius)) # deviation precentage
-                             #+ 1) # avoiding radius = 0
-
 
     def check_map_z_collision(self):
         if self.drone.z_level <= self.floor_level or self.drone.z_level >= self.ceiling_level: # out of height bound
             return True
         return False
 
+    # checking collision with floor/ceiling/walls/obstacles:
     def check_collision(self, x, y, radius=None):
+        # check floor/ceiling collision:
         if self.check_map_z_collision():
             return True
 
         if radius is None:
             radius = self.drone_radius
 
+        # check walls collision:
         for i in range(int(x - radius), int(x + radius)):
             for j in range(int(y - radius), int(y + radius)):
                 if 0 <= i < self.map_width and 0 <= j < self.map_height:
                     if self.map_matrix[j][i] == 1:
                         return True
+
+                    #check obstacles collision:
                     for obstacle in self.obstacles:
                         ox, oy, oradius, _, oheight = obstacle
                         if math.sqrt((i - ox)**2 + (j - oy)**2) < oradius:
@@ -176,6 +184,7 @@ class DroneSimulation:
             self.reset_simulation()
 
 
+    # for controling the drone's height:
     def move_drone_z_axis(self,z_direction):
         self.drone.change_z_level(z_direction)
         self.check_move_legality(self.drone_pos)
@@ -186,7 +195,7 @@ class DroneSimulation:
         new_pos = self.drone.move_drone(self.drone_pos , direction)
         self.check_move_legality(new_pos)
 
-    # for controling the drone manul
+    # for controling the drone manually:
     def update_drone_angle(self, angle_delta):
         self.drone.update_drone_angle(angle_delta)
 
@@ -214,9 +223,11 @@ class DroneSimulation:
             if self.is_obstacle_colliding_with_drone_xy(obstacle):
                 colliding_obstacles.append(obstacle)
 
-
-        self.drone.update_sensors(self.map_matrix, self.drone_pos, self.drone_radius, self.drone.orientation_sensor.drone_orientation,
-                                  self.floor_level,self.ceiling_level,colliding_obstacles) # for updating up/down distance sensors TODO: show raz
+        # updating drone's sensors:
+        self.drone.update_sensors(self.map_matrix, self.drone_pos, self.drone_radius,
+                                  self.drone.orientation_sensor.drone_orientation,
+                                  self.floor_level,self.ceiling_level,
+                                  colliding_obstacles) # for updating up/down distance sensors
        
     def paint_detected_points(self):
         def get_detected_points(sensor_distance, angle_offset):
@@ -274,11 +285,13 @@ class DroneSimulation:
         self.screen.blit(self.detected_surface, (0, 0))
 
     def reset_simulation(self):
+        #reseting flags for the autonomous flight algorithm:
         self.drone.returning_to_start = False
         self.drone.returning_to_explore = False
         self.drone.charging_drone = False
-        self.drone.return_to_exploring_path.clear()
-        self.drone.return_home_path.clear()
+
+        self.drone.return_to_exploring_path.clear() # clearing previously saved return to explore paths
+        self.drone.return_home_path.clear() # clearing previously saved return home paths
 
         self.detected_pixels.clear()  # Clear detected points
         self.respawn_drone()  # Respawn the drone
@@ -303,7 +316,6 @@ class DroneSimulation:
         percentage = (yellow_pixels_count / self.total_white_pixels) * 100
         return percentage
 
-    #TODO: ADD KEYS FOR MOVING UP AND DOWN
     def draw_legend_menu(self):
         # Define the legend text
         legend_texts = [
@@ -316,7 +328,11 @@ class DroneSimulation:
             "E: Toggle Autonomous Mode",
             "W: Increase Speed",
             "S: Decrease Speed",
+            "1/2: Increase/Decrease Height",
+            "H: Return Home",
             "M: Change Map"
+
+
         ]
 
         # Create a semi-transparent background for the legend
@@ -344,8 +360,7 @@ class DroneSimulation:
 
     def calculate_height_from_grey_shade(self,grey_shade):
         height = int(self.floor_level + # base height
-                    (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)) # adding a value that wont go more than the ceiling
-                    #/ 2.5) # the height is in pixels, this changes it to cm
+                    (self.ceiling_level - self.floor_level) * ((255.0 - grey_shade) / 255.0)) # added value that wont go more than the ceiling
         return height
 
     def spawn_obstacles(self, num_obstacles):
@@ -355,22 +370,17 @@ class DroneSimulation:
                 x = random.randint(obstacle_radius, self.map_width - obstacle_radius)
                 y = random.randint(obstacle_radius, self.map_height - obstacle_radius)
                 if not self.check_collision(x, y, obstacle_radius):
-                    grey_shade = 200#= random.randint(50, 200) # 0 = black max height, 255 - white min height
+                    grey_shade = 200 # 0 = black = max height, 255 = white = min height
                     color = (grey_shade, grey_shade, grey_shade)
                     # Calculate obstacle height based on grey shade
                     height = self.calculate_height_from_grey_shade(grey_shade)
-                    print("height: ",height)
-                    print("height * 2.5: ",int(height*2.5))
-                    
+
                     # making "stairs" obstacles:
-                    amount_of_stairs = 4 # adjust as needed
+                    amount_of_stairs = 4 # layers of heights per obstacle
                     for i in range(amount_of_stairs):
                         layer_grey_shade = min( 240, grey_shade - i*30)
                         layer_grey_shade = max( 20, layer_grey_shade)
                         layer_height = self.calculate_height_from_grey_shade(layer_grey_shade)
-                        print("layer_grey_shade: ", layer_grey_shade)
-                        print("layer_height: ",layer_height)
-                        print("layer_height * 2.5: ",layer_height *2.5)
                         self.obstacles.append((x, y, int(obstacle_radius *((amount_of_stairs-i)/amount_of_stairs)) , (grey_shade,grey_shade,grey_shade), layer_height))
                         
                     break
@@ -459,12 +469,14 @@ class DroneSimulation:
             self.adjust_drone_radius()
 
             if is_autonomous:
+                self.update_drone_desired_wall_distance() # adjusted based on the drone's changing size
+
                 # Update drone position by algorithm
                 self.drone_pos = self.drone.update_position_by_algorithm(
                     self.drone_pos,
                     dt,
                     self.map_matrix,
-                    self.drone_radius, self.screen,self.drone_positions)
+                    self.drone_radius)
             else:
                 self.move_drone_by_direction()
             #checking if the drone crashing into the wall or not  
