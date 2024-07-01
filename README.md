@@ -34,7 +34,7 @@ Additionally, the drone will be capable of scanning an entire map efficiently, s
 
 https://github.com/Raz-Saad/Autonomous_Robotics_Final_Project/assets/43138073/64b8a4d1-0d65-49bf-87a4-6cd879b04116
 
-### Improved Return to Start algorithm + Drone Charging & Getting Back to Scanning (For the demo - battrey life time is 60 secs)
+### Improved Return to Start algorithm + Drone Charging & Getting Back to Scanning (For the demo - battery life time is 60 secs)
 
 
 
