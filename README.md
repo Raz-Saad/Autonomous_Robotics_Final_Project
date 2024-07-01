@@ -30,9 +30,23 @@ Additionally, the drone will be capable of scanning an entire map efficiently, s
   
 ## Demo
 ### Wall-Switching Mechanism
-### Improved Return to Start algorithm
-### Drone Charging & Getting Back to Scanning
-### Flying Above Obstacless
+
+
+https://github.com/Raz-Saad/Autonomous_Robotics_Final_Project/assets/43138073/64b8a4d1-0d65-49bf-87a4-6cd879b04116
+
+### Improved Return to Start algorithm + Drone Charging & Getting Back to Scanning (For the demo - battrey life time is 60 secs)
+
+
+
+https://github.com/Raz-Saad/Autonomous_Robotics_Final_Project/assets/43138073/8023b8f7-ddd9-4f91-82c0-37cd281c19dd
+
+
+### Flying Above Obstacles
+
+
+
+https://github.com/Raz-Saad/Autonomous_Robotics_Final_Project/assets/43138073/e234f670-5cd2-40b1-ba92-7828ec7f5a35
+
 
 ## Previous Work
 ### Vision-Less Sensing for Autonomous Micro-Drones - by  Simon Pikalov,Elisha Azaria,Shaya Sonnenberg,Boaz Ben-Moshe  and Amos Azaria </br>
