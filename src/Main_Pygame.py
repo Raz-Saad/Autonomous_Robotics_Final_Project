@@ -371,7 +371,7 @@ class DroneSimulation:
                         layer_grey_shade = min( 240, grey_shade - i*30)
                         layer_grey_shade = max( 20, layer_grey_shade)
                         layer_height = self.calculate_height_from_grey_shade(layer_grey_shade)
-                        self.obstacles.append((x, y, int(obstacle_radius *((amount_of_stairs-i)/amount_of_stairs)) , (grey_shade,grey_shade,grey_shade), layer_height))
+                        self.obstacles.append((x, y, int(obstacle_radius *((amount_of_stairs-i)/amount_of_stairs)) , (layer_grey_shade,layer_grey_shade,layer_grey_shade), layer_height))
                         
                     break
 
